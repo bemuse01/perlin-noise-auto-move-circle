@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+        <script src="three r107.js"></script>
+        <script src="simplex-noise.2.3.0.min.js"></script>
+		<style>
+            body{
+                background: black;
+                padding: 0;
+                margin: 0;
+                overflow: hidden;
+            }
+            #canvas{
+                position: fixed;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                right: 0;
+            }
+		</style>
+	</head>
+	<body>
+    <canvas id="canvas"></canvas>
+    
+	<script>
+    let width, height, vWidth, vHeight, renderer, scene, camera
+    let circleGroup
+    let simplex = new SimplexNoise(), startTime = window.performance.now(), radian = Math.PI / 180
+    let arr = [], index = {
+        arr: 0,
+        vert: 0
+    }
+
+	width = window.innerWidth
+	height = window.innerHeight
+    
+    init();
+	function init(){
+        scene = new THREE.Scene()
+        
+		renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, canvas: canvas})
+		renderer.setSize(width, height)
+		renderer.setClearColor(0x000000)
+        renderer.setClearAlpha(0.0)
+        
+        circleGroup = new THREE.Group()
+
+		camera = new THREE.PerspectiveCamera(45, width / height, 1, 10000)
+		scene.add(camera)
+        camera.position.z = 50
+
+		window.addEventListener('resize', onWindowResize, false)
+
+        setUtils()
+        circle()
+        animate()
+
+        console.log(scene.boudingBox)
+    }
+
+    function setUtils(){
+        for(let i = -1; i < 1.02; i += 0.02) arr.push(i)
+        console.log(arr)
+    }
+
+    function circle(){
+        let geometry = {
+            spare: new THREE.CircleGeometry(5, 128),
+            main: new THREE.CircleGeometry(5, 128)
+        }
+        let material = new THREE.MeshBasicMaterial({
+            transparent: true,
+            color: 0x13eafe
+        })
+        let mesh = new THREE.Mesh(geometry.main, material)
+        mesh.spare = geometry.spare
+        mesh.frames = []
+        mesh.index = []
+        mesh.geometry.vertices.forEach((e, i) => {
+            /* let offset = mesh.geometry.parameters.radius, rd = 1, rf = 0.05
+            let x = mesh.spare.vertices[i].x, y = mesh.spare.vertices[i].y
+            let r = simplex.noise3D(x, y, time) * rf
+            e.x += x * r * 0.1
+            e.y += y * r * 0.1 */
+            let offset = mesh.geometry.parameters.radius, length = mesh.geometry.vertices.length
+            let x = mesh.spare.vertices[i].x, y = mesh.spare.vertices[i].y
+            let degreeX = (i / length) * 360 * 7 // 2880
+            let frame = [], random = Math.sin(degreeX * radian) /* random = Math.sin((i + x) * 0.3) */
+            for(let k = 0; k < length; k++){
+                let wX = mesh.spare.vertices[k].x
+                let wY = mesh.spare.vertices[k].y
+                let wDegreeX = ((k + i) / length * 2) * 360 * 2 // 1440
+                let wSinX = Math.sin(wDegreeX * radian)
+                frame.push(wSinX)
+            }
+            for(let k = 0; k < frame.length; k++) frame[k] *= random
+            mesh.frames.push(frame)
+            mesh.index[i] = 0
+            console.log(random)
+        })
+        circleGroup.add(mesh)
+        scene.add(circleGroup)
+        console.log(mesh.frames, geometry.spare.vertices)
+    }
+
+    function waveCircle(){
+        let delta = 0.01
+        let time = window.performance.now()
+        let mesh = circleGroup.children[0]
+        let x = mesh.spare.vertices[index.vert].x, y = mesh.spare.vertices[index.vert].y
+        mesh.geometry.vertices.forEach((e, i) => {
+            /* let offset = mesh.geometry.parameters.radius, rd = 1, rf = 0.05
+            let x = mesh.spare.vertices[i].x, y = mesh.spare.vertices[i].y
+            let r = simplex.noise3D(x, y, time) * rf
+            e.x += x * r * 0.1
+            e.y += y * r * 0.1 */
+
+            /* let x = mesh.spare.vertices[i].x, y = mesh.spare.vertices[i].y
+            e.x += x * Math.sin(x + time * 0.3) * 0.015
+            e.y += y * Math.sin(x + time * 0.3) * 0.015 */
+
+            /* let x = mesh.spare.vertices[i].x, y = mesh.spare.vertices[i].y
+            e.x += x * arr[index.arr] * 0.02
+            e.y += y * arr[index.arr] * 0.02 */
+
+            let x = mesh.spare.vertices[i].x, y = mesh.spare.vertices[i].y
+            e.x = x + (x * mesh.frames[i][mesh.index[i]] * 0.03)
+            e.y = y + (y * mesh.frames[i][mesh.index[i]] * 0.03)
+            mesh.index[i]++
+            if(mesh.index[i] == mesh.frames[i].length) mesh.index[i] = 0
+        })
+        index.arr++
+        if(index.arr == arr.length) index.arr = 0
+        mesh.geometry.verticesNeedUpdate = true
+
+        //circleGroup.rotation.z += 0.004
+    }
+
+    function moveCircle(){
+        let time = window.performance.now(), rd = 0.00001
+        let mesh = circleGroup.children[0], v = mesh.geometry.vertices, posZ = circleGroup.position.z
+        let noise = simplex.noise3D(time * rd * 7, time * rd * 8, time * rd * 9), offset = mesh.geometry.parameters.radius
+        let degree = (noise * 360) % 360, radiusX = noise * 0.1, radiusY = noise * 0.1
+        let vWidth = getVisibleWidth(posZ) / 2, vHeight = getVisibleHeight(posZ) / 2
+        let distanceX = Math.cos(degree * radian) * radiusX, distanceY = Math.sin(degree * radian) * radiusY
+        
+        if(circleGroup.position.x >= vWidth - offset){
+            if(distanceX > 0) distanceX *= -1
+        }
+        else if(circleGroup.position.x <= -vWidth + offset){
+            if(distanceX < 0) distanceX *= -1
+        }
+        if(circleGroup.position.y >= vHeight - offset){
+            if(distanceY > 0) distanceY *= -1
+        }
+        else if(circleGroup.position.y <= -vHeight + offset){
+            if(distanceY < 0) distanceY *= -1
+        }
+
+        circleGroup.position.x += distanceX
+        circleGroup.position.y += distanceY
+    }
+
+    function getVisibleHeight(depth){
+        let cameraOffset = camera.position.z;
+        if(depth < cameraOffset) depth -= cameraOffset
+        else depth += cameraOffset
+        let vFov = camera.fov * radian
+        return 2 * Math.tan(vFov / 2) * Math.abs(depth)
+    }
+
+    function getVisibleWidth(depth){
+        let height = getVisibleHeight(depth)
+        return height * camera.aspect
+    }
+
+	function onWindowResize(){
+		width = window.innerWidth
+		height = window.innerHeight
+
+		camera.aspect = width / height
+		camera.updateProjectionMatrix()
+
+		renderer.setSize(width, height)
+    }
+
+	function render(){
+        waveCircle()
+        moveCircle()
+		camera.lookAt(scene.position)
+		renderer.render(scene, camera)
+    }
+
+	function animate(){
+		render()
+		requestAnimationFrame(animate)
+	}
+	</script>
+	</body>
+</html>
