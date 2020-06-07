@@ -27,6 +27,7 @@
 	<script>
     let width, height, vWidth, vHeight, renderer, scene, camera
     let circleGroup
+    let dir_x = 1, dir_y = 1
     let simplex = new SimplexNoise(), startTime = window.performance.now(), radian = Math.PI / 180
     let arr = [], index = {
         arr: 0,
@@ -142,25 +143,23 @@
         let time = window.performance.now(), rd = 0.00001
         let mesh = circleGroup.children[0], v = mesh.geometry.vertices, posZ = circleGroup.position.z
         let noise = simplex.noise3D(time * rd * 7, time * rd * 8, time * rd * 9), offset = mesh.geometry.parameters.radius
-        let degree = (noise * 360) % 360, radiusX = noise * 0.1, radiusY = noise * 0.1
+        let degree = (noise * 360) % 360, radiusX = noise * 0.5, radiusY = noise * 0.5
         let vWidth = getVisibleWidth(posZ) / 2, vHeight = getVisibleHeight(posZ) / 2
-        let distanceX = Math.cos(degree * radian) * radiusX, distanceY = Math.sin(degree * radian) * radiusY
-        
-        if(circleGroup.position.x >= vWidth - offset){
-            if(distanceX > 0) distanceX *= -1
-        }
-        else if(circleGroup.position.x <= -vWidth + offset){
-            if(distanceX < 0) distanceX *= -1
-        }
-        if(circleGroup.position.y >= vHeight - offset){
-            if(distanceY > 0) distanceY *= -1
-        }
-        else if(circleGroup.position.y <= -vHeight + offset){
-            if(distanceY < 0) distanceY *= -1
-        }
-
+        let distanceX = dir_x * Math.cos(degree * radian) * radiusX, distanceY = dir_y * Math.sin(degree * radian) * radiusY
+    
         circleGroup.position.x += distanceX
         circleGroup.position.y += distanceY
+        circleGroup.position.x = Math.max(circleGroup.position.x, -vWidth + offset)
+        circleGroup.position.x = Math.min(circleGroup.position.x, vWidth - offset)
+        circleGroup.position.y = Math.max(circleGroup.position.y, -vHeight + offset)
+        circleGroup.position.y = Math.min(circleGroup.position.y, vHeight - offset)
+
+        if (circleGroup.position.x == -vWidth + offset || circleGroup.position.x == vWidth - offset) {
+            dir_x *= -1
+        }
+        if (circleGroup.position.y == -vHeight + offset || circleGroup.position.y == vHeight - offset) {
+            dir_y *= -1
+        }
     }
 
     function getVisibleHeight(depth){
